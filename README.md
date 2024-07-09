@@ -1,6 +1,7 @@
 # Crypto Trading Bot
 
 This project is a Python-based cryptocurrency trading bot that uses the Binance exchange to execute a simple buy/sell strategy. The bot fetches the order book, analyzes market conditions, and places trades based on predefined parameters to achieve a minimum profit percentage.
+![image](https://github.com/PahtrikProper/ORDER-BOOK-STRATEGY---1000SATS-USDT---BINANCE/assets/131755829/10bf669f-4bef-4d64-b8e4-2a3e78b7b319)
 
 ## Features
 
