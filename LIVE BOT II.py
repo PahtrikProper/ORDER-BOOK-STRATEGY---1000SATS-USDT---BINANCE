@@ -112,7 +112,6 @@ If you wish to contribute to the project, please fork the repository and submit 
 
 This project is licensed under the MIT License.
 """
-
 import os
 import ccxt
 import time
@@ -395,6 +394,7 @@ def live_trading(symbol):
         if (previous_market_condition in ['neutral', 'bearish'] and 
             order_book_analysis['market_condition'] == 'bullish' and 
             symbol_balance_usdt_equiv < MAX_SYMBOL_BALANCE_USDT_EQUIV):
+            logger.info(f"Buy opportunity detected at price: {best_entry_price:.8f}")
             if active_trade is None and balance >= TRADE_AMOUNT:
                 amount_to_buy = TRADE_AMOUNT / best_entry_price
                 if symbol_balance_usdt_equiv + (amount_to_buy * best_entry_price) <= MAX_SYMBOL_BALANCE_USDT_EQUIV:
@@ -431,6 +431,7 @@ def live_trading(symbol):
 
                 # Ensure the notional value is above the minimum allowed
                 if min_sell_price * amount_to_sell >= market_data[symbol]['limits']['cost']['min']:
+                    logger.info(f"Sell opportunity detected at price: {min_sell_price:.8f}")
                     while True:
                         sell_order = place_order(symbol, 'sell', min_sell_price, amount_to_sell)
                         if sell_order:
