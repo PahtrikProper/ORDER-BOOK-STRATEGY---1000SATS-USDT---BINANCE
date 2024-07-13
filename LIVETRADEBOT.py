@@ -3,6 +3,7 @@ import ccxt
 import time
 import logging
 from dotenv import load_dotenv
+from math import floor
 
 # Load environment variables
 load_dotenv()
@@ -234,19 +235,29 @@ def live_trading(symbol):
                 logger.info(f"BUY filled at {active_trade['price']:.8f}")
                 symbol_balance += active_trade['amount']
                 
+                # Wait 15 seconds before placing the sell order
+                time.sleep(15)
+
+                # Fetch the latest balances
+                _, updated_symbol_balance = fetch_balances()
+
+                # Round down symbol balance to two decimal places
+                rounded_symbol_balance = floor(updated_symbol_balance * 100) / 100
+
                 # Determine the sell price for at least 0.44% profit
                 min_sell_price = analysis['min_exit_price']
+
                 # Place a sell order at the target price
-                active_trade = place_order(symbol, 'sell', min_sell_price, active_trade['amount'])
+                active_trade = place_order(symbol, 'sell', min_sell_price, rounded_symbol_balance)
                 if active_trade is not None:
                     logger.info(f"Placing sell order at price: {min_sell_price:.8f}")
-                    symbol_balance -= active_trade['amount']
 
         elif active_trade and active_trade['side'] == 'sell':
             active_trade = update_order_status(active_trade)
             if active_trade['status'] == 'closed':
                 logger.info(f"SELL filled at {active_trade['price']:.8f}")
                 balance += active_trade['amount'] * active_trade['price']
+                symbol_balance -= active_trade['amount']
                 active_trade = None  # Ready for the next trade cycle
 
         total_value = balance + symbol_balance * current_price
