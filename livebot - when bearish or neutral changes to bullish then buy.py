@@ -183,6 +183,19 @@ def fetch_balances():
         time.sleep(60)
     return None, None
 
+def check_open_orders(symbol):
+    try:
+        open_orders = exchange.fetch_open_orders(symbol)
+        return len(open_orders) > 0
+    except ccxt.NetworkError as e:
+        logger.error(f"Network error: {e}")
+    except ccxt.ExchangeError as e:
+        logger.error(f"Exchange error: {e}")
+    except ccxt.RateLimitExceeded as e:
+        logger.error(f"Rate limit exceeded: {e}")
+        time.sleep(60)
+    return True  # Assume there are open orders if we can't fetch
+
 def live_trading(symbol):
     balance, symbol_balance = fetch_balances()
     if balance is None or symbol_balance is None:
@@ -220,7 +233,7 @@ def live_trading(symbol):
 
         if (previous_market_condition in ['neutral', 'bearish'] and 
             analysis['market_condition'] == 'bullish' and 
-            symbol_balance_usdt_equiv < MAX_SYMBOL_BALANCE_USDT_EQUIV and not has_bought):
+            symbol_balance_usdt_equiv < MAX_SYMBOL_BALANCE_USDT_EQUIV and not has_bought and not check_open_orders(symbol)):
             # Bullish trend detected from neutral or bearish market condition
             if active_trade is None and balance >= TRADE_AMOUNT:
                 buy_price = analysis['best_ask_price']
