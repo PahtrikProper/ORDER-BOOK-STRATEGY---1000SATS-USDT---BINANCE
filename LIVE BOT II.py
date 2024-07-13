@@ -23,7 +23,7 @@ This is a Python-based trading bot that interacts with the Binance exchange to e
 1. **Clone the repository:**
 
     ```bash
-    https://github.com/PahtrikProper/ORDER-BOOK-STRATEGY---1000SATS-USDT---BINANCE.git
+    git clone https://github.com/yourusername/crypto-trading-bot.git
     cd crypto-trading-bot
     ```
 
@@ -400,7 +400,9 @@ def live_trading(symbol):
                 if active_trade is not None:
                     logger.info(f"Buy order placed at best entry price: {best_entry_price:.8f}")
                     balance -= best_entry_price * amount_to_buy
+                    symbol_balance += amount_to_buy  # Update symbol balance after buy order
                     logger.info(f"Updated balance after placing buy order: {balance:.2f} USDT")
+                    logger.info(f"Updated symbol balance after buy order: {symbol_balance:.8f}")
 
         if active_trade and active_trade['side'] == 'buy':
             active_trade = update_order_status(active_trade)
