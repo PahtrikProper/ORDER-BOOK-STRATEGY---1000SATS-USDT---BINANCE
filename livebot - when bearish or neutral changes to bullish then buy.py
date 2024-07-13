@@ -14,7 +14,6 @@ ORDER_BOOK_DEPTH = 100  # Increased for more comprehensive analysis
 TRADE_AMOUNT = 200  # Fixed amount in USDT to trade each time
 TRADE_INTERVAL_SECONDS = 2
 PROFIT_PERCENTAGE = 0.0044  # Minimum 0.44% profit target
-TRAILING_PERCENTAGE = 0.002  # Trailing stop percentage
 
 # Order Book Analysis Parameters
 VOLUME_IMBALANCE_THRESHOLD = 1.2  # 20% more volume on buy side than sell side
@@ -247,26 +246,19 @@ def live_trading(symbol):
 
                 # Determine the sell price for at least 0.44% profit
                 min_sell_price = analysis['min_exit_price']
-                
-                # Place a dynamic sell order at the target price
-                trailing_sell_order = place_order(symbol, 'sell', min_sell_price, rounded_symbol_balance)
-                if trailing_sell_order is not None:
+
+                # Place a sell order at the target price
+                sell_order = place_order(symbol, 'sell', min_sell_price, rounded_symbol_balance)
+                if sell_order is not None:
                     logger.info(f"Placing sell order at price: {min_sell_price:.8f}")
 
-        if trailing_sell_order and trailing_sell_order['side'] == 'sell':
-            trailing_sell_order = update_order_status(trailing_sell_order)
-            if trailing_sell_order['status'] == 'open':
-                # Adjust the sell price dynamically based on the trailing percentage
-                new_sell_price = max(trailing_sell_order['price'], current_price * (1 - TRAILING_PERCENTAGE))
-                if new_sell_price > trailing_sell_order['price']:
-                    logger.info(f"Updating sell order price to: {new_sell_price:.8f}")
-                    exchange.cancel_order(trailing_sell_order['id'], trailing_sell_order['symbol'])
-                    trailing_sell_order = place_order(symbol, 'sell', new_sell_price, trailing_sell_order['amount'])
-            elif trailing_sell_order['status'] == 'closed':
-                logger.info(f"SELL filled at {trailing_sell_order['price']:.8f}")
-                balance += trailing_sell_order['amount'] * trailing_sell_order['price']
-                symbol_balance -= trailing_sell_order['amount']
-                trailing_sell_order = None  # Ready for the next trade cycle
+        if active_trade and active_trade['side'] == 'sell':
+            active_trade = update_order_status(active_trade)
+            if active_trade['status'] == 'closed':
+                logger.info(f"SELL filled at {active_trade['price']:.8f}")
+                balance += active_trade['amount'] * active_trade['price']
+                symbol_balance -= active_trade['amount']
+                active_trade = None  # Ready for the next trade cycle
 
         total_value = balance + symbol_balance * current_price
         logger.info(f"Current Balance: {balance:.2f} USDT, "
