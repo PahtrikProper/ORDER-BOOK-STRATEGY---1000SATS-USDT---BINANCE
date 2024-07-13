@@ -124,9 +124,9 @@ load_dotenv()
 
 # Configurable Parameters
 SYMBOL = '1000SATS/USDT'
-ORDER_BOOK_DEPTH = 100
+ORDER_BOOK_DEPTH = 10
 TRADE_AMOUNT = 200
-TRADE_INTERVAL_SECONDS = 2
+TRADE_INTERVAL_SECONDS = 1
 PROFIT_PERCENTAGE = 0.0044
 
 # Order Book Analysis Parameters
@@ -177,7 +177,7 @@ def fetch_order_book(symbol, limit=ORDER_BOOK_DEPTH):
         time.sleep(60)
     return None
 
-def fetch_recent_trades(symbol, limit=100):
+def fetch_recent_trades(symbol, limit=10):
     try:
         return exchange.fetch_trades(symbol, limit=limit)
     except ccxt.NetworkError as e:
@@ -390,6 +390,7 @@ def live_trading(symbol):
         unfilled_orders_logged = False
 
         symbol_balance_usdt_equiv = symbol_balance * best_entry_price
+        logger.info(f"Symbol balance (in {SYMBOL.split('/')[0]}): {symbol_balance:.8f}, Equivalent in USDT: {symbol_balance_usdt_equiv:.2f}")
 
         if (previous_market_condition in ['neutral', 'bearish'] and 
             order_book_analysis['market_condition'] == 'bullish' and 
@@ -411,8 +412,8 @@ def live_trading(symbol):
                 logger.info(f"Buy order filled at {active_trade['price']:.8f}")
                 symbol_balance += active_trade['amount']
                 
-                logger.info("Waiting 10 seconds before placing the sell order.")
-                time.sleep(10)
+                logger.info("Waiting 5 seconds before placing the sell order.")
+                time.sleep(5)
                 
                 # Refresh balances before placing the sell order
                 balance, symbol_balance = fetch_balances()
@@ -428,15 +429,21 @@ def live_trading(symbol):
                 # Calculate the amount to sell considering the fees
                 amount_to_sell = symbol_balance / (1 + sell_fee_rate)
 
-                if amount_to_sell < market_data[symbol]['limits']['amount']['min'] or amount_to_sell * min_sell_price < market_data[symbol]['limits']['cost']['min']:
-                    logger.error(f"Sell order amount or notional value is less than minimum allowed. Skipping this iteration.")
-                    continue
-
-                sell_order = place_order(symbol, 'sell', min_sell_price, amount_to_sell)
-                if sell_order:
-                    logger.info(f"Sell order placed at price: {min_sell_price:.8f}")
-                    symbol_balance -= amount_to_sell
-                    logger.info(f"Updated symbol balance after placing sell order: {symbol_balance:.8f}")
+                # Ensure the notional value is above the minimum allowed
+                if min_sell_price * amount_to_sell >= market_data[symbol]['limits']['cost']['min']:
+                    while True:
+                        sell_order = place_order(symbol, 'sell', min_sell_price, amount_to_sell)
+                        if sell_order:
+                            logger.info(f"Sell order placed at price: {min_sell_price:.8f}")
+                            symbol_balance -= amount_to_sell
+                            logger.info(f"Updated symbol balance after placing sell order: {symbol_balance:.8f}")
+                            break
+                        else:
+                            logger.error(f"Failed to place sell order. Retrying with adjusted amount.")
+                            amount_to_sell *= 0.99  # Reduce the amount slightly and retry
+                else:
+                    logger.error(f"Order notional {min_sell_price * amount_to_sell:.8f} is less than minimum allowed {market_data[symbol]['limits']['cost']['min']}.")
+                    active_trade = None  # Reset active trade if sell order can't be placed
 
         elif active_trade and active_trade['side'] == 'sell':
             active_trade = update_order_status(active_trade)
