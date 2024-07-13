@@ -192,6 +192,7 @@ def live_trading(symbol):
     active_trade = None
     last_api_call_time = time.time()
     previous_market_condition = 'neutral'
+    has_bought = False
 
     while True:
         time_since_last_call = time.time() - last_api_call_time
@@ -219,7 +220,7 @@ def live_trading(symbol):
 
         if (previous_market_condition in ['neutral', 'bearish'] and 
             analysis['market_condition'] == 'bullish' and 
-            symbol_balance_usdt_equiv < MAX_SYMBOL_BALANCE_USDT_EQUIV):
+            symbol_balance_usdt_equiv < MAX_SYMBOL_BALANCE_USDT_EQUIV and not has_bought):
             # Bullish trend detected from neutral or bearish market condition
             if active_trade is None and balance >= TRADE_AMOUNT:
                 buy_price = analysis['best_ask_price']
@@ -228,6 +229,7 @@ def live_trading(symbol):
                 if active_trade is not None:
                     logger.info(f"Placing buy order at best ask price: {buy_price:.8f}")
                     balance -= buy_price * amount_to_buy
+                    has_bought = True
 
         if active_trade and active_trade['side'] == 'buy':
             active_trade = update_order_status(active_trade)
@@ -250,7 +252,7 @@ def live_trading(symbol):
                 # Place a sell order at the target price
                 sell_order = place_order(symbol, 'sell', min_sell_price, rounded_symbol_balance)
                 if sell_order is not None:
-                    logger.info(f"Placing sell order at price: {min_sell_price:.8f}")
+                    logger.info(f"Placing sell order: {rounded_symbol_balance:.8f} {symbol} at {min_sell_price:.8f}")
 
         if active_trade and active_trade['side'] == 'sell':
             active_trade = update_order_status(active_trade)
@@ -259,6 +261,7 @@ def live_trading(symbol):
                 balance += active_trade['amount'] * active_trade['price']
                 symbol_balance -= active_trade['amount']
                 active_trade = None  # Ready for the next trade cycle
+                has_bought = False  # Reset for the next buy condition
 
         total_value = balance + symbol_balance * current_price
         logger.info(f"Current Balance: {balance:.2f} USDT, "
