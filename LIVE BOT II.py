@@ -112,6 +112,8 @@ If you wish to contribute to the project, please fork the repository and submit 
 
 This project is licensed under the MIT License.
 """
+
+
 import os
 import ccxt
 import time
