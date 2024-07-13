@@ -257,9 +257,9 @@ def live_trading(symbol):
         if active_trade and active_trade['side'] == 'sell':
             active_trade = update_order_status(active_trade)
             if active_trade['status'] == 'closed':
+                # Fetch the latest balances before updating
+                balance, symbol_balance = fetch_balances()
                 logger.info(f"SELL filled at {active_trade['price']:.8f}")
-                balance += active_trade['amount'] * active_trade['price']
-                symbol_balance -= active_trade['amount']
                 active_trade = None  # Ready for the next trade cycle
                 has_bought = False  # Reset for the next buy condition
 
