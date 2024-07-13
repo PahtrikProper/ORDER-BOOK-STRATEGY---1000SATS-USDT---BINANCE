@@ -396,13 +396,14 @@ def live_trading(symbol):
             symbol_balance_usdt_equiv < MAX_SYMBOL_BALANCE_USDT_EQUIV):
             if active_trade is None and balance >= TRADE_AMOUNT:
                 amount_to_buy = TRADE_AMOUNT / best_entry_price
-                active_trade = place_order(symbol, 'buy', best_entry_price, amount_to_buy)
-                if active_trade is not None:
-                    logger.info(f"Buy order placed at best entry price: {best_entry_price:.8f}")
-                    balance -= best_entry_price * amount_to_buy
-                    symbol_balance += amount_to_buy  # Update symbol balance after buy order
-                    logger.info(f"Updated balance after placing buy order: {balance:.2f} USDT")
-                    logger.info(f"Updated symbol balance after buy order: {symbol_balance:.8f}")
+                if symbol_balance_usdt_equiv + (amount_to_buy * best_entry_price) <= MAX_SYMBOL_BALANCE_USDT_EQUIV:
+                    active_trade = place_order(symbol, 'buy', best_entry_price, amount_to_buy)
+                    if active_trade is not None:
+                        logger.info(f"Buy order placed at best entry price: {best_entry_price:.8f}")
+                        balance -= best_entry_price * amount_to_buy
+                        symbol_balance += amount_to_buy  # Update symbol balance after buy order
+                        logger.info(f"Updated balance after placing buy order: {balance:.2f} USDT")
+                        logger.info(f"Updated symbol balance after buy order: {symbol_balance:.8f}")
 
         if active_trade and active_trade['side'] == 'buy':
             active_trade = update_order_status(active_trade)
@@ -427,8 +428,8 @@ def live_trading(symbol):
                 # Calculate the amount to sell considering the fees
                 amount_to_sell = symbol_balance / (1 + sell_fee_rate)
 
-                if amount_to_sell < market_data[symbol]['limits']['amount']['min']:
-                    logger.error(f"Sell order amount {amount_to_sell:.8f} is less than minimum allowed {market_data[symbol]['limits']['amount']['min']}. Skipping this iteration.")
+                if amount_to_sell < market_data[symbol]['limits']['amount']['min'] or amount_to_sell * min_sell_price < market_data[symbol]['limits']['cost']['min']:
+                    logger.error(f"Sell order amount or notional value is less than minimum allowed. Skipping this iteration.")
                     continue
 
                 sell_order = place_order(symbol, 'sell', min_sell_price, amount_to_sell)
