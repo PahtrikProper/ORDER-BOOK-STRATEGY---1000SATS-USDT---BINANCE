@@ -427,16 +427,15 @@ def live_trading(symbol):
                 # Calculate the amount to sell considering the fees
                 amount_to_sell = symbol_balance / (1 + sell_fee_rate)
 
-                while True:
-                    sell_order = place_order(symbol, 'sell', min_sell_price, amount_to_sell)
-                    if sell_order:
-                        logger.info(f"Sell order placed at price: {min_sell_price:.8f}")
-                        symbol_balance -= amount_to_sell
-                        logger.info(f"Updated symbol balance after placing sell order: {symbol_balance:.8f}")
-                        break
-                    else:
-                        logger.error(f"Failed to place sell order. Retrying with adjusted amount.")
-                        amount_to_sell *= 0.99  # Reduce the amount slightly and retry
+                if amount_to_sell < market_data[symbol]['limits']['amount']['min']:
+                    logger.error(f"Sell order amount {amount_to_sell:.8f} is less than minimum allowed {market_data[symbol]['limits']['amount']['min']}. Skipping this iteration.")
+                    continue
+
+                sell_order = place_order(symbol, 'sell', min_sell_price, amount_to_sell)
+                if sell_order:
+                    logger.info(f"Sell order placed at price: {min_sell_price:.8f}")
+                    symbol_balance -= amount_to_sell
+                    logger.info(f"Updated symbol balance after placing sell order: {symbol_balance:.8f}")
 
         elif active_trade and active_trade['side'] == 'sell':
             active_trade = update_order_status(active_trade)
