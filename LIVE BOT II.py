@@ -23,7 +23,7 @@ This is a Python-based trading bot that interacts with the Binance exchange to e
 1. **Clone the repository:**
 
     ```bash
-    git clone https://github.com/yourusername/crypto-trading-bot.git
+    https://github.com/PahtrikProper/ORDER-BOOK-STRATEGY---1000SATS-USDT---BINANCE.git
     cd crypto-trading-bot
     ```
 
