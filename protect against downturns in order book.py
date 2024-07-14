@@ -16,7 +16,7 @@ The bot makes trading decisions based on the following strategy:
     - **Neutral**: Neither bullish nor bearish conditions detected.
 3. **Trading Logic**:
     - **Buy**: Place a buy order when the market condition changes from bearish or neutral to bullish.
-    - **Sell**: Place a sell order when a profit target is met or if the market condition changes to bearish during an active trade.
+    - **Sell**: Place a sell order when a profit target is met or if the market condition changes to bearish during an active trade. Do not sell if the equivalent balance of 1000SATS is less than 50 USDT.
 
 ## Configuration Parameters
 
@@ -28,6 +28,7 @@ The bot makes trading decisions based on the following strategy:
 - `VOLUME_IMBALANCE_THRESHOLD`: Threshold for detecting volume imbalances (default is 1.2).
 - `SELL_WALL_THRESHOLD`: Threshold for detecting large sell walls (default is 1.5).
 - `LARGE_ORDER_THRESHOLD`: Threshold for detecting large orders (default is 1% of total volume).
+- `MIN_SELL_BALANCE_USDT`: Minimum balance in USDT equivalent to initiate a sell (default is 50 USDT).
 
 ## Functions
 
@@ -65,7 +66,7 @@ Cancels all open orders for the specified symbol. Handles errors and logs the ca
 The main trading bot function:
 - Checks the order book and market conditions at regular intervals.
 - Places buy orders when market conditions change to bullish.
-- Places sell orders when profit targets are met or market conditions change to bearish.
+- Places sell orders when profit targets are met or market conditions change to bearish. Ensures sufficient balance to sell.
 - Cancels and replaces orders based on real-time analysis of the order book.
 
 ## How to Run
@@ -119,6 +120,9 @@ PROFIT_PERCENTAGE = 0.0044  # Minimum 0.44% profit target
 VOLUME_IMBALANCE_THRESHOLD = 1.2  # 20% more volume on buy side than sell side
 SELL_WALL_THRESHOLD = 1.5  # Ratio indicating a large sell wall
 LARGE_ORDER_THRESHOLD = 0.01  # 1% of total volume as a large order
+
+# Minimum balance in USDT equivalent to initiate a sell
+MIN_SELL_BALANCE_USDT = 50
 
 # Rate Limiting Parameters
 MAX_REQUESTS_PER_MINUTE = 1200
@@ -224,6 +228,7 @@ def cancel_all_orders(symbol):
         logger.error(f"Error cancelling orders: {e}")
 
 def trading_bot(symbol):
+    initial_balance = get_current_balance('USDT')  # Capture initial balance
     last_api_call_time = time.time()
     previous_market_condition = 'neutral'
 
@@ -262,7 +267,8 @@ def trading_bot(symbol):
 
         previous_market_condition = analysis['market_condition']
 
-        if symbol_balance > 0:
+        # Sell condition: Only sell if the equivalent value in USDT is greater than MIN_SELL_BALANCE_USDT
+        if symbol_balance * current_price >= MIN_SELL_BALANCE_USDT:
             min_sell_price = analysis['min_exit_price']
             # Find the highest possible sell price in the order book that meets the profit target
             for ask_price, ask_volume in order_book['asks']:
@@ -275,13 +281,16 @@ def trading_bot(symbol):
             amount_to_sell = round(symbol_balance, 8)  # Round down to avoid over-selling
             place_order(symbol, 'sell', amount_to_sell, sell_price)
             logger.info(f"Placing sell order at price: {sell_price:.8f}")
+        else:
+            logger.info("Insufficient balance to sell.")
 
         total_value = usdt_balance + symbol_balance * current_price
+        pnl = total_value - initial_balance  # Calculate PNL based on the initial balance
 
         logger.info(f"Current Balance: {usdt_balance:.2f} USDT, "
                     f"Symbol Balance: {symbol_balance:.8f}, "
                     f"Total Value: {total_value:.2f}, "
-                    f"PNL: {total_value - TRADE_AMOUNT:.2f}")
+                    f"PNL: {pnl:.2f}")
 
 def main():
     trading_bot(SYMBOL)
