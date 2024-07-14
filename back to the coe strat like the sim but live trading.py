@@ -46,8 +46,8 @@ def fetch_order_book(symbol, limit=ORDER_BOOK_DEPTH):
     return None
 
 def analyze_order_book(order_book):
-    asks = order_book['asks'][:10]  # Top 10 asks
-    bids = order_book['bids'][:10]  # Top 10 bids
+    asks = order_book['asks'][:15]  # Top 10 asks
+    bids = order_book['bids'][:15]  # Top 10 bids
     
     if not asks or not bids:
         logger.warning("Not enough asks or bids in the order book for analysis.")
