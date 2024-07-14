@@ -1,0 +1,70 @@
+LIVE BOT II.py README
+
+
+
+This trading strategy script is designed to operate on the Binance exchange using the ccxt library for cryptocurrency trading. It is tailored for a specific trading pair (1000SATS/USDT) and includes various configurable parameters for trade management and risk control. Here's a detailed breakdown of how the strategy works:
+
+Key Components of the Strategy
+Environment and Configuration:
+
+The script loads environment variables for API keys.
+Configurable parameters include:
+SYMBOL: Trading pair.
+ORDER_BOOK_DEPTH: Depth of the order book to analyze.
+TRADE_AMOUNT: Fixed amount in USDT for each trade.
+TRADE_INTERVAL_SECONDS: Interval between trade attempts.
+PROFIT_PERCENTAGE: Target profit percentage (0.44% in this case).
+VOLUME_IMBALANCE_THRESHOLD: Threshold for determining market condition (bullish/bearish).
+MAX_SYMBOL_BALANCE_USDT_EQUIV: Maximum balance of the traded symbol in USDT equivalent.
+MAX_REQUESTS_PER_MINUTE: Maximum API requests per minute.
+RATE_LIMIT_SAFETY_FACTOR: Factor to avoid hitting rate limits.
+Setup and Initialization:
+
+Logging is set up for tracking events and errors.
+The Binance exchange is initialized with rate limiting.
+Market data is loaded from the exchange.
+Order Book Analysis:
+
+The script fetches and analyzes the order book for the specified trading pair.
+It calculates the best ask and bid prices, total bid and ask volumes, and volume imbalance.
+Based on the volume imbalance, it determines the market condition (bullish, bearish, or neutral).
+It calculates the minimum exit price required to achieve the target profit percentage.
+Order Validation:
+
+Orders are validated against exchange rules, including minimum order size, precision, lot size step, and notional value.
+Orders that don't meet the criteria are rejected.
+Placing Orders:
+
+Buy and sell orders are placed based on the analyzed market condition and validated against the account balance and market rules.
+The script handles exceptions such as insufficient funds, network errors, and rate limit exceeded errors.
+Order Management:
+
+The status of active orders is updated periodically.
+The script checks for open orders to avoid placing duplicate orders.
+It fetches the latest balances to ensure sufficient funds for trades.
+Trade Logic:
+
+The script continuously monitors the market and adjusts its strategy based on the analyzed market condition.
+In a bullish market, it places buy orders if conditions are favorable.
+Once a buy order is filled, it places a sell order after a short delay to achieve the target profit.
+Detailed Workflow
+Initialization:
+
+Load environment variables and set up logging.
+Initialize the Binance exchange with rate limiting.
+Load market data.
+Main Trading Loop (live_trading):
+
+Fetch the initial balances.
+Enter a loop that runs indefinitely, checking market conditions and placing trades.
+Market Analysis and Trade Execution:
+
+Fetch and analyze the order book at regular intervals.
+Determine market conditions and decide on trading actions based on the analysis.
+Place buy orders in a bullish market if the conditions are met.
+Monitor active trades and update their status.
+Place sell orders after buy orders are filled to achieve the target profit.
+Error Handling and Logging:
+
+Handle various exceptions to ensure the script continues running smoothly.
+Log important events, errors, and trade actions for debugging and tracking.
