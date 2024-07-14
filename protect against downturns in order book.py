@@ -98,6 +98,7 @@ This bot is for educational purposes only. Trading cryptocurrencies involves sig
 
 Feel free to modify the parameters and improve the strategy according to your needs. Happy trading!
 """
+
 import os
 import ccxt
 import time
@@ -223,9 +224,6 @@ def cancel_all_orders(symbol):
         logger.error(f"Error cancelling orders: {e}")
 
 def trading_bot(symbol):
-    balance = TRADE_AMOUNT
-    symbol_balance = 0
-    active_trade = None
     last_api_call_time = time.time()
     previous_market_condition = 'neutral'
 
@@ -234,6 +232,10 @@ def trading_bot(symbol):
         if time_since_last_call < TRADE_INTERVAL_SECONDS:
             time.sleep(TRADE_INTERVAL_SECONDS - time_since_last_call)
         
+        # Update balances
+        usdt_balance = get_current_balance('USDT')
+        symbol_balance = get_current_balance(symbol.split('/')[0])
+
         order_book = fetch_order_book(symbol)
         last_api_call_time = time.time()
         
@@ -252,55 +254,31 @@ def trading_bot(symbol):
 
         # Buy condition: market condition must change from bearish or neutral to bullish
         if previous_market_condition in ['neutral', 'bearish'] and analysis['market_condition'] == 'bullish':
-            if active_trade is None and balance >= TRADE_AMOUNT:
+            if usdt_balance >= TRADE_AMOUNT:
                 buy_price = analysis['best_ask_price']
                 amount_to_buy = TRADE_AMOUNT / buy_price
-                active_trade = place_order(symbol, 'buy', amount_to_buy, buy_price)
+                place_order(symbol, 'buy', amount_to_buy, buy_price)
                 logger.info(f"Placing buy order at best ask price: {buy_price:.8f}")
-            elif active_trade and active_trade['side'] == 'sell':
-                cancel_all_orders(symbol)
-                active_trade = None
 
         previous_market_condition = analysis['market_condition']
 
-        if active_trade and active_trade['side'] == 'buy':
-            order = exchange.fetch_order(active_trade['id'], symbol)
-            if order['status'] == 'closed':
-                logger.info(f"BUY filled at {order['price']:.8f}")
-                symbol_balance += order['amount']
-                balance -= TRADE_AMOUNT
-                
-                # Determine the sell price for at least 0.44% profit
-                min_sell_price = analysis['min_exit_price']
-                # Find the highest possible sell price in the order book that meets the profit target
-                for ask_price, ask_volume in order_book['asks']:
-                    if ask_price > min_sell_price:
-                        sell_price = ask_price
-                        break
-                else:
-                    sell_price = min_sell_price
-                
-                asset = symbol.split('/')[0]
-                symbol_balance = get_current_balance(asset)
-                amount_to_sell = round(symbol_balance, 8)  # Round down to avoid over-selling
-                
-                active_trade = place_order(symbol, 'sell', amount_to_sell, sell_price)
-                logger.info(f"Placing sell order at price: {sell_price:.8f}")
+        if symbol_balance > 0:
+            min_sell_price = analysis['min_exit_price']
+            # Find the highest possible sell price in the order book that meets the profit target
+            for ask_price, ask_volume in order_book['asks']:
+                if ask_price > min_sell_price:
+                    sell_price = ask_price
+                    break
+            else:
+                sell_price = min_sell_price
 
-        elif active_trade and active_trade['side'] == 'sell':
-            order = exchange.fetch_order(active_trade['id'], symbol)
-            if order['status'] == 'closed':
-                logger.info(f"SELL filled at {order['price']:.8f}")
-                balance += order['amount'] * order['price']
-                symbol_balance -= order['amount']
-                active_trade = None  # Ready for the next trade cycle
-            elif analysis['market_condition'] == 'bearish':
-                cancel_all_orders(symbol)
-                active_trade = None
+            amount_to_sell = round(symbol_balance, 8)  # Round down to avoid over-selling
+            place_order(symbol, 'sell', amount_to_sell, sell_price)
+            logger.info(f"Placing sell order at price: {sell_price:.8f}")
 
-        total_value = balance + symbol_balance * current_price
+        total_value = usdt_balance + symbol_balance * current_price
 
-        logger.info(f"Current Balance: {balance:.2f} USDT, "
+        logger.info(f"Current Balance: {usdt_balance:.2f} USDT, "
                     f"Symbol Balance: {symbol_balance:.8f}, "
                     f"Total Value: {total_value:.2f}, "
                     f"PNL: {total_value - TRADE_AMOUNT:.2f}")
