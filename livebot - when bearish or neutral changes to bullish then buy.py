@@ -205,12 +205,15 @@ def live_trading(symbol):
     active_trade = None
     last_api_call_time = time.time()
     previous_market_condition = 'neutral'
-    has_bought = False
 
     while True:
         time_since_last_call = time.time() - last_api_call_time
         if time_since_last_call < TRADE_INTERVAL_SECONDS:
             time.sleep(TRADE_INTERVAL_SECONDS - time_since_last_call)
+        
+        if check_open_orders(symbol):
+            logger.info("Open orders found. Skipping this iteration.")
+            continue
         
         order_book = fetch_order_book(symbol)
         last_api_call_time = time.time()
@@ -233,7 +236,7 @@ def live_trading(symbol):
 
         if (previous_market_condition in ['neutral', 'bearish'] and 
             analysis['market_condition'] == 'bullish' and 
-            symbol_balance_usdt_equiv < MAX_SYMBOL_BALANCE_USDT_EQUIV and not has_bought and not check_open_orders(symbol)):
+            symbol_balance_usdt_equiv < MAX_SYMBOL_BALANCE_USDT_EQUIV):
             # Bullish trend detected from neutral or bearish market condition
             if active_trade is None and balance >= TRADE_AMOUNT:
                 buy_price = analysis['best_ask_price']
@@ -242,7 +245,6 @@ def live_trading(symbol):
                 if active_trade is not None:
                     logger.info(f"Placing buy order at best ask price: {buy_price:.8f}")
                     balance -= buy_price * amount_to_buy
-                    has_bought = True
 
         if active_trade and active_trade['side'] == 'buy':
             active_trade = update_order_status(active_trade)
@@ -254,7 +256,7 @@ def live_trading(symbol):
                 time.sleep(15)
 
                 # Fetch the latest balances
-                _, updated_symbol_balance = fetch_balances()
+                balance, updated_symbol_balance = fetch_balances()
 
                 # Round down symbol balance to two decimal places
                 rounded_symbol_balance = floor(updated_symbol_balance * 100) / 100
@@ -262,10 +264,15 @@ def live_trading(symbol):
                 # Determine the sell price for at least 0.44% profit
                 min_sell_price = analysis['min_exit_price']
 
-                # Place a sell order at the target price
-                sell_order = place_order(symbol, 'sell', min_sell_price, rounded_symbol_balance)
-                if sell_order is not None:
-                    logger.info(f"Placing sell order: {rounded_symbol_balance:.8f} {symbol} at {min_sell_price:.8f}")
+                # Check balance before placing the sell order
+                balance, current_symbol_balance = fetch_balances()
+                if current_symbol_balance >= rounded_symbol_balance:
+                    # Place a sell order at the target price
+                    sell_order = place_order(symbol, 'sell', min_sell_price, rounded_symbol_balance)
+                    if sell_order is not None:
+                        logger.info(f"Placing sell order: {rounded_symbol_balance:.8f} {symbol} at {min_sell_price:.8f}")
+                else:
+                    logger.error(f"Insufficient balance for placing sell order: required {rounded_symbol_balance:.8f}, available {current_symbol_balance:.8f}")
 
         if active_trade and active_trade['side'] == 'sell':
             active_trade = update_order_status(active_trade)
@@ -274,8 +281,8 @@ def live_trading(symbol):
                 balance, symbol_balance = fetch_balances()
                 logger.info(f"SELL filled at {active_trade['price']:.8f}")
                 active_trade = None  # Ready for the next trade cycle
-                has_bought = False  # Reset for the next buy condition
 
+        balance, symbol_balance = fetch_balances()
         total_value = balance + symbol_balance * current_price
         logger.info(f"Current Balance: {balance:.2f} USDT, "
                     f"Symbol Balance: {symbol_balance:.8f}, "
